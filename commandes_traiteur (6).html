@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commandes Traiteur</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; }
+  .topbar { background: #fff; border-bottom: 1px solid #e5e5e0; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 10; }
+  .topbar-title { font-size: 17px; font-weight: 600; }
+  .badge { font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+  .badge-green { background: #e6f4ea; color: #1e7e34; }
+  .badge-blue { background: #e8f0fe; color: #1a56db; }
+  .badge-red { background: #fce8e8; color: #c0392b; }
+  .badge-gray { background: #f0f0f0; color: #666; }
+  .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+  .config-card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e0; padding: 16px 18px; margin-bottom: 20px; }
+  .config-title { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+  .config-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .config-row:last-child { margin-bottom: 0; }
+  .config-label { font-size: 13px; color: #666; width: 100px; flex-shrink: 0; }
+  .config-input { flex: 1; min-width: 200px; font-size: 14px; padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; color: #1a1a1a; outline: none; }
+  .config-input:focus { border-color: #1a56db; background: #fff; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+  .btn { cursor: pointer; font-size: 14px; font-weight: 500; padding: 9px 18px; border-radius: 8px; border: none; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: #1a56db; color: #fff; }
+  .btn-green { background: #1e7e34; color: #fff; }
+  .auto-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; cursor: pointer; }
+  .toggle { width: 36px; height: 20px; background: #ccc; border-radius: 10px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: #1a56db; }
+  .toggle::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:2px; left:2px; transition: left 0.2s; }
+  .toggle.on::after { left:18px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #fff; border-radius: 10px; border: 1px solid #e5e5e0; padding: 14px 16px; }
+  .stat-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 26px; font-weight: 600; color: #1a1a1a; }
+  .stat-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+  .section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+  .plats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .plat-card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e0; padding: 14px 16px; }
+  .plat-name { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 10px; line-height: 1.35; }
+  .plat-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px; }
+  .plat-count { font-weight: 600; color: #1a1a1a; }
+  .plat-total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; color: #1a1a1a; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+  .plat-bar-bg { height: 5px; background: #f0f0ee; border-radius: 3px; margin-top: 10px; }
+  .plat-bar { height: 5px; background: #1a56db; border-radius: 3px; }
+  .last-update { font-size: 12px; color: #aaa; text-align: right; margin-bottom: 20px; }
+  .error-box { background: #fce8e8; border: 1px solid #f5c6c6; border-radius: 10px; padding: 14px 16px; color: #c0392b; font-size: 14px; margin-bottom: 16px; display: none; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #1a56db; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 15px; }
+  @media (max-width: 480px) { .plats-grid { grid-template-columns: 1fr 1fr; } .stats-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">🍽️ Commandes Traiteur</div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <span class="badge badge-gray" id="status-badge">En attente</span>
+    <span id="countdown" style="font-size:12px;color:#888;display:none;"></span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="config-card">
+    <div class="config-title">Configuration</div>
+    <div class="config-row">
+      <span class="config-label">ID formulaire</span>
+      <input class="config-input" id="form-id" type="text" value="260983275574065" placeholder="ID du formulaire JotForm" />
+    </div>
+    <div class="config-row">
+      <span class="config-label">Clé API</span>
+      <input class="config-input" id="api-key" type="text" value="0a1ac512dab909b238315a442fa2f5f1" placeholder="Clé API JotForm" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="fetchData()">⟳ Rafraîchir maintenant</button>
+      <button class="btn btn-green" id="dl-btn" onclick="downloadExcel()" style="display:none;">↓ Télécharger Excel</button>
+      <div class="auto-toggle" onclick="toggleAuto()">
+        <div class="toggle on" id="auto-toggle"></div>
+        <span>Auto (1h)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-box" id="error-box"></div>
+  <div id="main-content"><div class="empty-state"><span class="spinner"></span>Chargement...</div></div>
+</div>
+
+<script>
+const WORKER_URL = 'https://jotform-proxy.jf-gelinas1.workers.dev';
+
+const PRICES = {ti:9,tf:33.5,si:9,sf:33.5,pi:9,pf:33.5,fi:9,ff:33.5,sauce:7.5,pizza:8.75,poke:12,salade:9.5,potage:5.5,quiche:10,baguette:7,muffin:5};
+
+const PLATS_DEF = [
+  {label:'Tournedos de poulet', items:[{k:'ti',l:'Individuel'},{k:'tf',l:'Familial'}]},
+  {label:'Sauté de boeuf', items:[{k:'si',l:'Individuel'},{k:'sf',l:'Familial'}]},
+  {label:'Porc aux tomates', items:[{k:'pi',l:'Individuel'},{k:'pf',l:'Familial'}]},
+  {label:'Fusilli pizza', items:[{k:'fi',l:'Individuel'},{k:'ff',l:'Familial'}]},
+  {label:'Sauce spaghetti', items:[{k:'sauce'}]},
+  {label:'Pizza-ghetti', items:[{k:'pizza'}]},
+  {label:'Poke au goberge', items:[{k:'poke'}]},
+  {label:'Salade big mac', items:[{k:'salade'}]},
+  {label:'Potage détox', items:[{k:'potage'}]},
+  {label:'Quiche', items:[{k:'quiche'}]},
+  {label:'Baguette', items:[{k:'baguette'}]},
+  {label:'Muffins double choco (6)', items:[{k:'muffin'}]},
+];
+
+let allSubmissions = [];
+let autoOn = true, autoInterval = null, countdownInterval = null, nextRefresh = null;
+
+window.onload = () => fetchData();
+
+function toggleAuto() {
+  autoOn = !autoOn;
+  document.getElementById('auto-toggle').className = 'toggle'+(autoOn?' on':'');
+  if (autoOn) startAutoRefresh();
+  else { clearInterval(autoInterval); clearInterval(countdownInterval); document.getElementById('countdown').style.display='none'; }
+}
+
+function startAutoRefresh() {
+  clearInterval(autoInterval); clearInterval(countdownInterval);
+  nextRefresh = Date.now()+3600000;
+  autoInterval = setInterval(fetchData, 3600000);
+  const el = document.getElementById('countdown');
+  el.style.display='';
+  countdownInterval = setInterval(()=>{
+    const d=Math.max(0,nextRefresh-Date.now());
+    el.textContent=`Prochain: ${Math.floor(d/60000)}m${Math.floor((d%60000)/1000).toString().padStart(2,'0')}s`;
+  },1000);
+}
+
+function setStatus(t,type){const b=document.getElementById('status-badge');b.textContent=t;b.className='badge badge-'+type;}
+
+async function fetchData() {
+  const fid = document.getElementById('form-id').value.trim();
+  const akey = document.getElementById('api-key').value.trim();
+  if (!fid || !akey) return;
+  document.getElementById('error-box').style.display='none';
+  setStatus('Chargement...','blue');
+  document.getElementById('main-content').innerHTML='<div class="empty-state"><span class="spinner"></span>Connexion à JotForm...</div>';
+
+  try {
+    let all=[], offset=0;
+    while(true) {
+      const url = `${WORKER_URL}?formId=${fid}&apiKey=${akey}&offset=${offset}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Erreur serveur: ' + res.status);
+      const data = await res.json();
+      if (data.responseCode !== 200) throw new Error(data.message || 'Erreur JotForm code ' + data.responseCode);
+      all = all.concat(data.content);
+      if (data.content.length < 1000) break;
+      offset += 1000;
+    }
+    allSubmissions = all;
+    renderDashboard(all);
+    document.getElementById('dl-btn').style.display='';
+    setStatus('En ligne · '+all.length+' commandes','green');
+    if (autoOn) startAutoRefresh();
+  } catch(e) {
+    document.getElementById('error-box').textContent='⚠ '+e.message;
+    document.getElementById('error-box').style.display='';
+    document.getElementById('main-content').innerHTML='';
+    setStatus('Erreur','red');
+  }
+}
+
+function parseSub(sub) {
+  const t={ti:0,tf:0,si:0,sf:0,pi:0,pf:0,fi:0,ff:0,sauce:0,pizza:0,poke:0,salade:0,potage:0,quiche:0,baguette:0,muffin:0};
+  Object.values(sub.answers||{}).forEach(ans => {
+    const txt = (ans.text||ans.name||'').toLowerCase();
+    const answer = ans.answer;
+    if (!answer && answer!==0) return;
+
+    if (typeof answer==='object' && !Array.isArray(answer)) {
+      Object.entries(answer).forEach(([sl,sv]) => {
+        const qty=parseInt(sv)||0; if(!qty) return;
+        const s=sl.toLowerCase().trim();
+        const isI=s.includes('individuel');
+        const isF=s.includes('familial')||s.includes('casserole');
+        if(!isI&&!isF) return;
+        if(txt.includes('tournedos')){if(isI)t.ti+=qty;else t.tf+=qty;}
+        else if(txt.includes('sauté')||txt.includes('saute')||txt.includes('boeuf')){if(isI)t.si+=qty;else t.sf+=qty;}
+        else if(txt.includes('porc')){if(isI)t.pi+=qty;else t.pf+=qty;}
+        else if(txt.includes('fusilli')){if(isI)t.fi+=qty;else t.ff+=qty;}
+      });
+      return;
+    }
+
+    const qty=parseInt(answer)||0; if(!qty) return;
+    if(txt.includes('tournedos')&&txt.includes('individuel'))t.ti+=qty;
+    else if(txt.includes('tournedos'))t.tf+=qty;
+    else if((txt.includes('sauté')||txt.includes('boeuf'))&&txt.includes('individuel'))t.si+=qty;
+    else if(txt.includes('sauté')||txt.includes('boeuf'))t.sf+=qty;
+    else if(txt.includes('porc')&&txt.includes('individuel'))t.pi+=qty;
+    else if(txt.includes('porc'))t.pf+=qty;
+    else if(txt.includes('fusilli')&&txt.includes('individuel'))t.fi+=qty;
+    else if(txt.includes('fusilli'))t.ff+=qty;
+    else if(txt.includes('sauce'))t.sauce+=qty;
+    else if(txt.includes('pizza'))t.pizza+=qty;
+    else if(txt.includes('poke'))t.poke+=qty;
+    else if(txt.includes('salade'))t.salade+=qty;
+    else if(txt.includes('potage'))t.potage+=qty;
+    else if(txt.includes('quiche'))t.quiche+=qty;
+    else if(txt.includes('baguette'))t.baguette+=qty;
+    else if(txt.includes('muffin'))t.muffin+=qty;
+  });
+  return t;
+}
+
+function parseSubs(subs){
+  const tot={ti:0,tf:0,si:0,sf:0,pi:0,pf:0,fi:0,ff:0,sauce:0,pizza:0,poke:0,salade:0,potage:0,quiche:0,baguette:0,muffin:0};
+  subs.forEach(s=>{const t=parseSub(s);Object.keys(tot).forEach(k=>tot[k]+=t[k]);});
+  return tot;
+}
+
+function renderDashboard(subs) {
+  const t=parseSubs(subs);
+  const portions=Object.keys(PRICES).reduce((s,k)=>s+(t[k]||0),0);
+  const rev=Object.keys(PRICES).reduce((s,k)=>s+(t[k]||0)*PRICES[k],0);
+  const maxV=Math.max(...PLATS_DEF.map(p=>p.items.reduce((s,i)=>s+(t[i.k]||0),0)),1);
+
+  let platsHTML='';
+  PLATS_DEF.forEach(p=>{
+    const total=p.items.reduce((s,i)=>s+(t[i.k]||0),0);
+    const pct=Math.round(total/maxV*100);
+    let rows='';
+    if(p.items.length>1) p.items.forEach(i=>{if(i.l) rows+=`<div class="plat-row"><span>${i.l}</span><span class="plat-count">${t[i.k]||0}</span></div>`;});
+    platsHTML+=`<div class="plat-card"><div class="plat-name">${p.label}</div>${rows}<div class="plat-total-row"><span>Total</span><span>${total}</span></div><div class="plat-bar-bg"><div class="plat-bar" style="width:${pct}%"></div></div></div>`;
+  });
+
+  document.getElementById('main-content').innerHTML=`
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Commandes</div><div class="stat-value">${subs.length}</div><div class="stat-sub">clients</div></div>
+      <div class="stat-card"><div class="stat-label">Portions</div><div class="stat-value">${portions}</div><div class="stat-sub">items commandés</div></div>
+      <div class="stat-card"><div class="stat-label">Revenus estimés</div><div class="stat-value">${Math.round(rev)} $</div><div class="stat-sub">avant taxes</div></div>
+    </div>
+    <div class="section-title">Résumé par plat</div>
+    <div class="plats-grid">${platsHTML}</div>
+    <div class="last-update">Mis à jour : ${new Date().toLocaleString('fr-CA')}</div>`;
+}
+
+function getField(answers,kws){
+  const f=Object.values(answers).find(a=>kws.some(k=>(a.text||a.name||'').toLowerCase().includes(k)));
+  if(!f) return '';
+  const a=f.answer;
+  if(typeof a==='object'&&a!==null) return Object.values(a).filter(Boolean).join(' ');
+  return a||'';
+}
+
+function downloadExcel(){
+  if(!allSubmissions.length) return;
+  const t=parseSubs(allSubmissions);
+  const wb=XLSX.utils.book_new();
+  const rows=[[' ','Prénom','Nom','Tournedos Ind','Tournedos Fam','Sauté Ind','Sauté Fam','Porc Ind','Porc Fam','Fusilli Ind','Fusilli Fam','Sauce','Pizza','Poke','Salade','Potage','Quiche','Baguette','Muffin','Lieux','Total $'],
+    ['TOTAL','','',t.ti,t.tf,t.si,t.sf,t.pi,t.pf,t.fi,t.ff,t.sauce,t.pizza,t.poke,t.salade,t.potage,t.quiche,t.baguette,t.muffin,'','']];
+  allSubmissions.forEach(sub=>{
+    const ans=sub.answers||{};
+    const st=parseSub(sub);
+    const total=Object.keys(PRICES).reduce((s,k)=>s+(st[k]||0)*PRICES[k],0);
+    rows.push([sub.created_at,getField(ans,['prénom','prenom']),getField(ans,['nom de famille']),
+      st.ti||'',st.tf||'',st.si||'',st.sf||'',st.pi||'',st.pf||'',st.fi||'',st.ff||'',
+      st.sauce||'',st.pizza||'',st.poke||'',st.salade||'',st.potage||'',st.quiche||'',st.baguette||'',st.muffin||'',
+      getField(ans,['lieu','récupération']),total.toFixed(2)]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=Array(21).fill({wch:14});
+  XLSX.utils.book_append_sheet(wb,ws,'COMMANDE');
+  XLSX.utils.writeFile(wb,`commandes_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+</script>
+</body>
+</html>
